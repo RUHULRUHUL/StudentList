@@ -21,6 +21,17 @@ interface StudentDao {
     @Query("select * from student order by id asc")
     fun getAllStudent(): LiveData<List<Student>>
 
+
     @Query("select * from student order by id desc")
     fun getDescStudentList(): LiveData<List<Student>>
+
+
+    //For the Server Operation
+    @Insert
+    fun insertStudentServer(student: Student)
+
+    @Query("select * from student order by id asc")
+    fun getServerAllStudent(): LiveData<List<Student>>
+
+
 }

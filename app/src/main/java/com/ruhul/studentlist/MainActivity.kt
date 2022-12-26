@@ -30,12 +30,10 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         setContentView(binding.root)
 
 
+        SyncAdapter.initializeSyncAdapter(this)
         initialize()
         studentList()
         clickEvent()
-        SyncAdapter.initializeSyncAdapter(this)
-
-
 
     }
 

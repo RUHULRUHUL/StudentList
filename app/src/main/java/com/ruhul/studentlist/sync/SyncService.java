@@ -9,7 +9,6 @@ import androidx.annotation.Nullable;
 import com.ruhul.studentlist.sync.syncAdapter.SyncAdapter;
 
 public class SyncService extends Service {
-
     private static SyncAdapter syncAdapter = null;
     private static final Object syncAdapterLock = new Object();
 
