@@ -32,6 +32,39 @@
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
+
+
+        <service
+            android:name=".sync.AuthenticatorService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accounts.AccountAuthenticator"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accounts.AccountAuthenticator"
+                android:resource="@xml/authenticator" />
+        </service>
+
+        <service
+            android:name=".sync.SyncService"
+            android:exported="true"
+            android:process=":sync">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter"/>
+            </intent-filter>
+            <meta-data android:name="android.content.SyncAdapter"
+                android:resource="@xml/syncadapter" />
+        </service>
+
+        <provider
+            android:name="com.ruhul.studentlist.sync.StubContentProvider"
+            android:authorities="com.ruhul.studentlist.provider"
+            android:exported="false"
+            android:syncable="true"/>
+
+
+
+
     </application>
 
 </manifest>

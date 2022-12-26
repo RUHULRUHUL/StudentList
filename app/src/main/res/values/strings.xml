@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">StudentList</string>
+    <string name="account_type">com.ruhul.studentlist.sync.syncAdapter</string>
+    <string name="content_authority">com.ruhul.studentlist.sync.StubContentProvider</string>
 </resources>

@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.ruhul.studentlist.adapter.StudentAdapter
 import com.ruhul.studentlist.databinding.ActivityMainBinding
 import com.ruhul.studentlist.room.StudentDB
+import com.ruhul.studentlist.sync.syncAdapter.SyncAdapter
 
 class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
@@ -28,9 +29,13 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+
         initialize()
         studentList()
         clickEvent()
+        SyncAdapter.initializeSyncAdapter(this)
+
+
 
     }
 
@@ -81,6 +86,8 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         studentList = arrayListOf()
         studentDB = StudentDB.getInstance(this)
         binding.toolbarTitle.text = "StudentDB"
+
+
     }
 
     private fun studentList() {
