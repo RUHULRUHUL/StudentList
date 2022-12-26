@@ -52,18 +52,14 @@ dependencies {
 
 
     implementation 'com.google.code.gson:gson:2.9.0'
-/*    var room_version = "2.4.3"
-
-    implementation("androidx.room:room-runtime:$room_version")
-    annotationProcessor("androidx.room:room-compiler:$room_version")*/
 
     def roomVersion = "2.4.3"
-
     implementation("androidx.room:room-runtime:$roomVersion")
-
     // To use Kotlin annotation processing tool (kapt)
     kapt("androidx.room:room-compiler:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
+
+
 
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4'

@@ -1,37 +1,43 @@
 package com.ruhul.studentlist
 
 import android.annotation.SuppressLint
-import android.os.AsyncTask
+import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.widget.*
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
-import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.ruhul.studentlist.adapter.NormalListAdapter
 import com.ruhul.studentlist.adapter.StudentAdapter
 import com.ruhul.studentlist.databinding.ActivityMainBinding
 import com.ruhul.studentlist.room.StudentDB
 
-class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
+class NormalListActivity : AppCompatActivity(), NormalListAdapter.StudentUpdateListener {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var adapter: StudentAdapter
-    private lateinit var studentList: List<Student>
-    private lateinit var studentDB: StudentDB
+    private lateinit var adapter: NormalListAdapter
+    private lateinit var studentList: MutableList<Student>
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
+        setContentView(R.layout.activity_normal_list)
         initialize()
-        studentList()
         clickEvent()
+        setAdapter()
+        
+    }
 
+    private fun setAdapter() {
+        adapter = NormalListAdapter(studentList, this,this)
+        val layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        binding.studentRV.layoutManager = layoutManager
+        binding.studentRV.adapter = adapter
     }
 
     private fun clickEvent() {
@@ -55,7 +61,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
 
         binding.filterImg.setOnClickListener {
-            filterAscToDesc()
+
         }
 
         binding.deleteImg.setOnClickListener {
@@ -64,7 +70,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
             builder1.setMessage("Are you Sure All Data Clear")
             builder1.setIcon(android.R.drawable.ic_dialog_alert)
             builder1.setPositiveButton("Yes") { _, _ ->
-                studentDB.studentDao().deleteAllStudent()
+                studentList.clear()
             }
             builder1.setNegativeButton("No") { dialogInterface, _ ->
                 dialogInterface.dismiss()
@@ -73,61 +79,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
             alertDialog1.setCancelable(false)
             alertDialog1.show()
         }
-
-    }
-
-    @SuppressLint("SetTextI18n")
-    private fun initialize() {
-        studentList = arrayListOf()
-        studentDB = StudentDB.getInstance(this)
-        binding.toolbarTitle.text = "StudentDB"
-    }
-
-    private fun studentList() {
-        getStudentList().observe(this) {
-            adapter = StudentAdapter(it, this, this)
-            val layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
-            binding.studentRV.layoutManager = layoutManager
-            binding.studentRV.adapter = adapter
-
-        }
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    private fun filterAscToDesc() {
-        val dialogBuilder = AlertDialog.Builder(this)
-        val dialogView = layoutInflater.inflate(R.layout.filter_alert, null)
-        dialogBuilder.setView(dialogView)
-
-        //val ascRadioButton = dialogView.findViewById(R.id.ascBtn) as RadioButton
-        val descRadioButton = dialogView.findViewById(R.id.descBtn) as RadioButton
-        val filterButton = dialogView.findViewById(R.id.filterBtn) as Button
-        val radioGroup = dialogView.findViewById(R.id.filterRadioGroup) as RadioGroup
-
-        val alertDialog = dialogBuilder.create()
-        alertDialog.show()
-
-
-        filterButton.setOnClickListener {
-            alertDialog.dismiss()
-            val id = radioGroup.id
-            if (id > 0) {
-                if (descRadioButton.isChecked) {
-                    studentDB.studentDao().getDescStudentList().observe(this) {
-                        Toast.makeText(this, "Descending List", Toast.LENGTH_SHORT).show()
-                        adapter = StudentAdapter(it, this, this)
-                        val layoutManager =
-                            LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
-                        binding.studentRV.layoutManager = layoutManager
-                        binding.studentRV.adapter = adapter
-                    }
-
-                } else {
-                    studentList()
-                }
-            }
-        }
-
     }
 
 
@@ -146,7 +97,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
 
         submitButton.setOnClickListener {
-
             if (nameEditText.text.toString().isEmpty()) {
                 nameEditText.error = "enter name"
             } else if (idEditText.text.toString().isEmpty()) {
@@ -158,7 +108,10 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
                     nameEditText.text.toString().trim()
 
                 )
-                InsertStudent().execute(student)
+                studentList.add(student)
+                adapter.notifyDataSetChanged()
+
+
                 Toast.makeText(this, "Student Save Information", Toast.LENGTH_SHORT).show()
                 alertDialog.dismiss()
             }
@@ -166,11 +119,15 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
     }
 
-    private fun getStudentList(): LiveData<List<Student>> {
-        return studentDB.studentDao().getAllStudent()
+    @SuppressLint("SetTextI18n")
+    private fun initialize() {
+        studentList = mutableListOf()
+        binding.toolbarTitle.text = "StudentDB"
+
     }
 
-    override fun studentUpdate(student: Student, position: Int) {
+    override fun onItemUpdate(student: Student, position: Int) {
+
         val dialogBuilder = AlertDialog.Builder(this)
         val dialogView = layoutInflater.inflate(R.layout.student_from, null)
         dialogBuilder.setView(dialogView)
@@ -184,6 +141,8 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
         val alertDialog = dialogBuilder.create()
         alertDialog.show()
+
+
 
         submitButton.setOnClickListener {
             if (nameEditText.text.toString().isEmpty()) {
@@ -201,51 +160,13 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
                 )
 
-                UpdateStudent().execute(student)
+                studentList.add(position, student)
+                adapter.notifyItemChanged(position)
                 alertDialog.dismiss()
             }
         }
 
     }
 
-
-    @SuppressLint("StaticFieldLeak")
-    inner class InsertStudent : AsyncTask<Student?, Void?, Void?>() {
-        @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg student: Student?): Void? {
-            student[0]?.let { studentDB.studentDao().insertStudent(it) }
-            return null
-        }
-    }
-
-    @SuppressLint("StaticFieldLeak")
-    inner class UpdateStudent :
-        AsyncTask<Student?, Void?, Void?>() {
-        @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg student: Student?): Void? {
-            student[0]?.let { studentDB.studentDao().updateStudent(it) }
-
-            return null
-        }
-    }
-
-/*    inner class DeleteStudent :
-        AsyncTask<Student?, Void?, Void?>() {
-        override fun doInBackground(vararg student: Student?): Void? {
-            student[0]?.let { studentDB.studentDao().deleteStudent(it) }
-            return null
-        }
-
-    }*/
-
-/*    inner class DeleteAllStudent :
-        AsyncTask<Void?, Void?, Void?>() {
-        @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg p0: Void?): Void? {
-            studentDB.studentDao().deleteAllStudent()
-            return null
-        }
-
-    }*/
 
 }
