@@ -5,6 +5,7 @@ import android.os.AsyncTask
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -23,17 +24,26 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     private lateinit var studentList: List<Student>
     private lateinit var studentDB: StudentDB
 
+    private lateinit var syncAdapter: SyncAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        syncAdapter = SyncAdapter(this, true)
+        syncAdapter.initializeSyncAdapter()
 
-        SyncAdapter.initializeSyncAdapter(this)
+
         initialize()
         studentList()
         clickEvent()
+
+
+        val list = studentDB.studentDao().getLocalStudents().value?.toList()
+        list?.let {
+            Log.d("ListItem", "listSizeItem: "+list.size)
+        }
 
     }
 

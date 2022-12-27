@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">StudentList</string>
-    <string name="account_type">com.ruhul.studentlist.sync.syncAdapter</string>
+    <string name="account_type">com.ruhul.studentlist</string>
     <string name="content_authority">com.ruhul.studentlist.provider</string>
 </resources>

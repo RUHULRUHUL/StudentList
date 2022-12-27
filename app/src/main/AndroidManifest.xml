@@ -42,7 +42,7 @@
 
         <service
             android:name=".sync.AuthenticatorService"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
@@ -53,7 +53,7 @@
 
         <service
             android:name=".sync.SyncService"
-            android:exported="true"
+            android:exported="false"
             android:process=":sync">
             <intent-filter>
                 <action android:name="android.content.SyncAdapter" />

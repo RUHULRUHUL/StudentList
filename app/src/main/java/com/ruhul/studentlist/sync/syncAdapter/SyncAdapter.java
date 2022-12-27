@@ -1,48 +1,51 @@
 package com.ruhul.studentlist.sync.syncAdapter;
 
-import static android.content.Context.NOTIFICATION_SERVICE;
-
 import android.accounts.Account;
 import android.accounts.AccountManager;
-import android.app.Notification;
+import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.TaskStackBuilder;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SyncRequest;
 import android.content.SyncResult;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-import androidx.work.OneTimeWorkRequest;
-import androidx.work.WorkManager;
-import androidx.work.WorkRequest;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.Observer;
 
-import com.ruhul.studentlist.FileUploadFourground;
 import com.ruhul.studentlist.R;
+import com.ruhul.studentlist.Student;
+import com.ruhul.studentlist.room.StudentDB;
+
+import java.util.List;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
     // 60 seconds (1 minute) * 180 = 3 hours
-    public static final int SYNC_INTERVAL = 60 * 5;
-    public static final int SYNC_FLEXTIME = SYNC_INTERVAL / 2;
+    public static final long SYNC_INTERVAL = 10000L;
+    public static final long SYNC_FLEXTIME = SYNC_INTERVAL / 2;
     ContentResolver mContentResolver;
-    private static String logDebug = "SyncAdapterDebugTest";
+    private static final String logDebug = "SyncAdapterDebugTest";
 
-    private static Context context;
+    @SuppressLint("StaticFieldLeak")
+    private final Context context;
+
+    private StudentDB studentDB;
 
     public SyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
+        this.context = context;
         mContentResolver = context.getContentResolver();
+        studentDB = StudentDB.Companion.getInstance(context);
+    }
+
+    public void initializeSyncAdapter() {
+        Log.d(logDebug, "call - initializeSyncAdapter: ");
+        getSyncAccount();
     }
 
     @Override
@@ -52,92 +55,115 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                               ContentProviderClient contentProviderClient,
                               SyncResult syncResult) {
 
-        showNotification();
-
-        //upload file in server
         Log.d(logDebug, "call -: onPerformSync started...");
-        WorkRequest uploadWorkRequest = new OneTimeWorkRequest.Builder(FileUploadFourground.class).build();
-        WorkManager.getInstance(getContext()).enqueue(uploadWorkRequest);
+
+/*        studentDB.studentDao().getLocalStudents()
+                .observe((LifecycleOwner) this, new Observer<List<Student>>() {
+                    @Override
+                    public void onChanged(List<Student> students) {
+                        Log.d(logDebug, "call -: onPerformSync started..." + students.size());
+                        showNotification(students);
+
+                    }
+                });*/
+/*      WorkRequest uploadWorkRequest = new OneTimeWorkRequest.Builder(FileUploadFourground.class).build();
+        WorkManager.getInstance(context).enqueue(uploadWorkRequest);*/
 
     }
 
-    public static Account getSyncAccount(Context context) {
+    public Account getSyncAccount() {
         Log.d(logDebug, "call -: getSyncAccount started...");
         AccountManager accountManager = (AccountManager) context.getSystemService(Context.ACCOUNT_SERVICE);
 
-        Account newAccount = new Account("Ruhul", "com.ruhul.studentlist");
+        Account newAccount = new Account("Ruhul", context.getString(R.string.account_type));
 
         if (null == accountManager.getPassword(newAccount)) {
-            if (!accountManager.addAccountExplicitly(newAccount, null, null)) {
+            if (!accountManager.addAccountExplicitly(newAccount, "", null)) {
                 return null;
             }
-            onAccountCreated(newAccount, context);
+            onAccountCreated(newAccount);
         }
         return newAccount;
     }
 
-    private static void onAccountCreated(Account newAccount, Context context) {
+    private void onAccountCreated(Account newAccount) {
         Log.d(logDebug, "call -: onAccountCreated started...");
-        SyncAdapter.configurePeriodicSync(context, SYNC_INTERVAL, SYNC_FLEXTIME);
-        ContentResolver.setSyncAutomatically(newAccount, "com.ruhul.studentlist.provider", true);
-        //syncImmediately(context);
+        configurePeriodicSync();
+        ContentResolver.setSyncAutomatically(newAccount, context.getString(R.string.content_authority), true);
+        syncImmediately();
     }
 
-    public static void configurePeriodicSync(Context context, int syncInterval, int flexTime) {
-
-        Log.d(logDebug, "configurePeriodicSync- syncInterval: " + syncInterval);
-        Log.d(logDebug, "configurePeriodicSync- flexTime: " + flexTime);
-
-        Account account = getSyncAccount(context);
+    public void configurePeriodicSync() {
+        Log.d(logDebug, "configurePeriodicSync- syncInterval: " + SYNC_INTERVAL);
+        Log.d(logDebug, "configurePeriodicSync- flexTime: " + SYNC_FLEXTIME);
+        Account account = getSyncAccount();
         String authority = context.getString(R.string.content_authority);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            // we can enable inexact timers in our periodic sync
-            SyncRequest request = new SyncRequest.Builder().
-                    syncPeriodic(syncInterval, flexTime).
-                    setSyncAdapter(account, authority).
-                    setExtras(new Bundle()).build();
-            ContentResolver.requestSync(request);
-        } else {
-            ContentResolver.addPeriodicSync(account,
-                    authority, new Bundle(), syncInterval);
-        }
+        ContentResolver.addPeriodicSync(
+                account,
+                authority,
+                Bundle.EMPTY,
+                SYNC_INTERVAL);
     }
 
-    public static void syncImmediately(Context context) {
-
+    public void syncImmediately() {
         Log.d(logDebug, "call - syncImmediately: ");
-
         Bundle bundle = new Bundle();
         bundle.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true);
         bundle.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
-        ContentResolver.requestSync(getSyncAccount(context),
+        ContentResolver.requestSync(getSyncAccount(),
                 context.getString(R.string.content_authority), bundle);
     }
 
-    public static void initializeSyncAdapter(Context mContext) {
-        Log.d(logDebug, "call - initializeSyncAdapter: ");
-        context = mContext;
-        getSyncAccount(context);
-    }
 
-    private void showNotification() {
+    private void showNotification(List<Student> students) {
 
-        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(context);
+        NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
         createNotificationChannel();
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, "CHANNEL_ID")
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext(), "CHANNEL_ID")
                 .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
-                .setContentTitle("My notification")
-                .setContentText("File upload ..")
-                .setStyle(new NotificationCompat.BigTextStyle()
-                        .bigText("Much longer text that cannot fit one line..."))
+                .setContentTitle("sync adapter")
+                .setContentText("file upload ..")
                 .setAllowSystemGeneratedContextualActions(false)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setProgress(100, 1, false)
-                .setContentText("Download completed").setProgress(0, 0, false);
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        int totalItem = students.size();
+
+        if (!students.isEmpty()) {
+            for (int i = 0; i < students.size(); i++) {
+                int Position = i;
+                Thread thread = new Thread() {
+                    @Override
+                    public void run() {
+                        studentDB.studentDao().deleteStudent(students.get(Position));
+                    }
+                };
+                thread.start();
+                builder.setProgress(totalItem, i, false);
+                notificationManager.notify(2, builder.build());
+
+            }
+        }
 
 
-        notificationManager.notify(1, builder.build());
+/*        for (int i = 1; i <= 100; i++) {
+            //Room Item Delete
+            try {
+                Thread.sleep(200);
+                builder.setProgress(100, i, false);
+                notificationManager.notify(2, builder.build());
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }*/
+
+        builder.setProgress(0, 0, false);
+        builder.clearActions();
+        builder.setContentIntent(null);
+        notificationManager.notify(2, builder.build());
+
+        //  notificationManager.notify(2, builder.build());
     }
 
     private void createNotificationChannel() {
@@ -147,7 +173,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             int importance = NotificationManager.IMPORTANCE_DEFAULT;
             NotificationChannel channel = new NotificationChannel("CHANNEL_ID", name, importance);
             channel.setDescription(description);
-            NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
+            NotificationManager notificationManager = getContext().getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
     }

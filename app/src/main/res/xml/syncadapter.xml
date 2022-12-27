@@ -4,5 +4,5 @@
     android:allowParallelSyncs="false"
     android:contentAuthority="com.ruhul.studentlist.provider"
     android:isAlwaysSyncable="true"
-    android:supportsUploading="true"
-    android:userVisible="true" />
+    android:supportsUploading="false"
+    android:userVisible="false" />
