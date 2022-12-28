@@ -14,38 +14,30 @@ import android.content.SyncResult;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
-import androidx.lifecycle.LifecycleOwner;
-import androidx.lifecycle.Observer;
-
 import com.ruhul.studentlist.R;
 import com.ruhul.studentlist.Student;
 import com.ruhul.studentlist.model.post.Post;
 import com.ruhul.studentlist.model.post.PostResponse;
 import com.ruhul.studentlist.network.RetrofitClient;
 import com.ruhul.studentlist.room.StudentDB;
-import com.ruhul.studentlist.signup.RegistrationResponse;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
     // 60 seconds (1 minute) * 180 = 3 hours
-    public static final long SYNC_INTERVAL = 60 * 16;
-    public static final long SYNC_FLEXTIME = SYNC_INTERVAL / 2;
+    public static final long SYNC_INTERVAL = 60 * 60;
+    public static final long SYNC_FLEXTIME = 60 * 5;
     ContentResolver mContentResolver;
     private static final String logDebug = "SyncAdapterDebugTest";
 
     @SuppressLint("StaticFieldLeak")
     private final Context context;
-    private List<Student> studentList = new ArrayList<>();
+    private final List<Student> studentList = new ArrayList<>();
 
     private StudentDB studentDB;
 
@@ -151,37 +143,25 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
     private void onAccountCreated(Account newAccount) {
         Log.d(logDebug, "call -: onAccountCreated started...");
-        configurePeriodicSync(SYNC_INTERVAL,SYNC_FLEXTIME);
+        configurePeriodicSync();
         ContentResolver.setSyncAutomatically(newAccount, context.getString(R.string.content_authority), true);
         syncImmediately();
     }
 
-    private   void configurePeriodicSync(long syncInterval, long flexTime) {
+    private void configurePeriodicSync() {
         Account account = getSyncAccount();
         String authority = context.getString(R.string.content_authority);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // we can enable inexact timers in our periodic sync
-            SyncRequest request = new SyncRequest.Builder().
-                    syncPeriodic(syncInterval, flexTime).
+            SyncRequest request = new SyncRequest.Builder()
+                    .syncPeriodic(SyncAdapter.SYNC_INTERVAL, SyncAdapter.SYNC_FLEXTIME).
                     setSyncAdapter(account, authority).
                     setExtras(new Bundle()).build();
             ContentResolver.requestSync(request);
         } else {
             ContentResolver.addPeriodicSync(account,
-                    authority, new Bundle(), syncInterval);
+                    authority, new Bundle(), SyncAdapter.SYNC_INTERVAL);
         }
     }
-
-/*    public void configurePeriodicSync() {
-        Account account = getSyncAccount();
-        String authority = context.getString(R.string.content_authority);
-        ContentResolver.addPeriodicSync(
-                account,
-                authority,
-                Bundle.EMPTY,
-                SYNC_INTERVAL);
-    }*/
-
     public void syncImmediately() {
         Log.d(logDebug, "call - syncImmediately: ");
         Bundle bundle = new Bundle();
@@ -195,13 +175,12 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             CharSequence name = "Notification Channel";
             String description = "this is for Test Notification";
-            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            int importance = NotificationManager.IMPORTANCE_HIGH;
             NotificationChannel channel = new NotificationChannel("CHANNEL_ID", name, importance);
             channel.setDescription(description);
             NotificationManager notificationManager = getContext().getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }
     }
-
 
 }

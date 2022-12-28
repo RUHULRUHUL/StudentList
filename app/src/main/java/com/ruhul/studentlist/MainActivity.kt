@@ -11,13 +11,10 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.*
-import androidx.annotation.RestrictTo.Scope
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat.getSystemService
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -32,8 +29,7 @@ import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.security.AccessController.getContext
-
+@Suppress("DEPRECATION")
 class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
     private lateinit var binding: ActivityMainBinding
@@ -59,17 +55,18 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     }
 
     private fun PeriodicWiseTimeUpload() {
+        //5 minutes
         val timer = object : CountDownTimer(300 * 1000, 1000) {
             override fun onTick(millisUntilFinished: Long) {}
             override fun onFinish() {
                 Toast.makeText(this@MainActivity, "Start Upload..", Toast.LENGTH_SHORT).show()
 
-                getStudentList().observe(this@MainActivity, Observer {
+                getStudentList().observe(this@MainActivity) {
                     if (it.isNotEmpty()) {
                         uploadData(it)
                     }
 
-                })
+                }
             }
         }
         timer.start()
@@ -304,7 +301,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
                 val id = student.ranId
 
-                val student: Student = Student(
+                val student = Student(
                     id,
                     idEditText.text.toString().trim().toInt(),
                     nameEditText.text.toString().trim()
