@@ -9,6 +9,7 @@ import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.SyncRequest;
 import android.content.SyncResult;
 import android.os.Build;
 import android.os.Bundle;
@@ -150,12 +151,28 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
     private void onAccountCreated(Account newAccount) {
         Log.d(logDebug, "call -: onAccountCreated started...");
-        configurePeriodicSync();
+        configurePeriodicSync(SYNC_INTERVAL,SYNC_FLEXTIME);
         ContentResolver.setSyncAutomatically(newAccount, context.getString(R.string.content_authority), true);
         syncImmediately();
     }
 
-    public void configurePeriodicSync() {
+    private   void configurePeriodicSync(long syncInterval, long flexTime) {
+        Account account = getSyncAccount();
+        String authority = context.getString(R.string.content_authority);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // we can enable inexact timers in our periodic sync
+            SyncRequest request = new SyncRequest.Builder().
+                    syncPeriodic(syncInterval, flexTime).
+                    setSyncAdapter(account, authority).
+                    setExtras(new Bundle()).build();
+            ContentResolver.requestSync(request);
+        } else {
+            ContentResolver.addPeriodicSync(account,
+                    authority, new Bundle(), syncInterval);
+        }
+    }
+
+/*    public void configurePeriodicSync() {
         Account account = getSyncAccount();
         String authority = context.getString(R.string.content_authority);
         ContentResolver.addPeriodicSync(
@@ -163,7 +180,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
                 authority,
                 Bundle.EMPTY,
                 SYNC_INTERVAL);
-    }
+    }*/
 
     public void syncImmediately() {
         Log.d(logDebug, "call - syncImmediately: ");
