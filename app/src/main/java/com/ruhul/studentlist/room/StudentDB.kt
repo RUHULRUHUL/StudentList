@@ -11,22 +11,9 @@ abstract class StudentDB : RoomDatabase() {
 
     abstract fun studentDao(): StudentDao
 
-
     companion object {
-
         @Volatile
-        private   var Instance: StudentDB?=null
-
-/*        fun getDatabase(context: Context): StudentDB {
-            instance = Room.databaseBuilder(
-                context.applicationContext,
-                StudentDB::class.java, "dbName"
-            )
-                .fallbackToDestructiveMigration()
-                .allowMainThreadQueries()
-                .build()
-            return instance
-        }*/
+        private var Instance: StudentDB? = null
 
         fun getInstance(context: Context): StudentDB {
             if (Instance == null) {
@@ -44,23 +31,6 @@ abstract class StudentDB : RoomDatabase() {
 
             return Instance!!
         }
-
-
-
-
-/*        @Synchronized
-        fun getInstance(ctx: Context): StudentDB {
-            if (instance == null)
-                instance = Room.databaseBuilder(
-                    ctx.applicationContext, StudentDB::class.java, dbName
-                )
-                    .fallbackToDestructiveMigration()
-                    .allowMainThreadQueries()
-                    .build()
-
-            return instance!!
-
-        }*/
     }
 
 

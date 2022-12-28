@@ -31,7 +31,6 @@ interface StudentDao {
     fun insertStudentServer(student: Student)
 
     @Query("select * from student order by id asc")
-    fun getLocalStudents(): LiveData<List<Student>>
-
+    fun getLocalStudents(): List<Student>
 
 }

@@ -4,7 +4,10 @@ import android.database.Observable;
 
 import androidx.annotation.NonNull;
 
+import com.ruhul.studentlist.ConstantField;
 import com.ruhul.studentlist.model.SliderBannerResponse;
+import com.ruhul.studentlist.model.post.Post;
+import com.ruhul.studentlist.model.post.PostResponse;
 import com.ruhul.studentlist.signup.RegistrationResponse;
 
 import java.io.IOException;
@@ -19,6 +22,7 @@ import retrofit2.Call;
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
+import retrofit2.http.Body;
 import retrofit2.http.Field;
 import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.GET;
@@ -51,7 +55,7 @@ public class RetrofitClient {
             });
             // Create retrofit instance
             Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl("")
+                    .baseUrl(ConstantField.PlaceHolderBaseUrl)
                     .client(client.build())
                     .addConverterFactory(GsonConverterFactory.create())
                     .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
@@ -64,19 +68,10 @@ public class RetrofitClient {
     }
 
     public interface ApiServices {
-        @GET("")
+        @GET(ConstantField.Sliders)
         Observable<SliderBannerResponse> getSliders();
 
-
-        @FormUrlEncoded
-        @POST("")
-        Observable<RegistrationResponse> userSignup(
-                @Field("name") String name,
-                @Field("email") String email,
-                @Field("mobile") String mobile_no,
-                @Field("password") String password,
-                @Field("password_confirmation") String passwordConfirmation
-        );
-
+        @POST(ConstantField.posts)
+        Call<PostResponse> postData(@Body Post post);
     }
 }

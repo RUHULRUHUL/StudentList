@@ -13,39 +13,49 @@ import android.content.SyncResult;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.Observer;
 
 import com.ruhul.studentlist.R;
 import com.ruhul.studentlist.Student;
+import com.ruhul.studentlist.model.post.Post;
+import com.ruhul.studentlist.model.post.PostResponse;
+import com.ruhul.studentlist.network.RetrofitClient;
 import com.ruhul.studentlist.room.StudentDB;
+import com.ruhul.studentlist.signup.RegistrationResponse;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class SyncAdapter extends AbstractThreadedSyncAdapter {
     // 60 seconds (1 minute) * 180 = 3 hours
-    public static final long SYNC_INTERVAL = 10000L;
+    public static final long SYNC_INTERVAL = 60 * 16;
     public static final long SYNC_FLEXTIME = SYNC_INTERVAL / 2;
     ContentResolver mContentResolver;
     private static final String logDebug = "SyncAdapterDebugTest";
 
     @SuppressLint("StaticFieldLeak")
     private final Context context;
+    private List<Student> studentList = new ArrayList<>();
 
     private StudentDB studentDB;
+
 
     public SyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
         this.context = context;
         mContentResolver = context.getContentResolver();
-        studentDB = StudentDB.Companion.getInstance(context);
-    }
-
-    public void initializeSyncAdapter() {
         Log.d(logDebug, "call - initializeSyncAdapter: ");
         getSyncAccount();
+
     }
 
     @Override
@@ -57,26 +67,78 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
         Log.d(logDebug, "call -: onPerformSync started...");
 
-/*        studentDB.studentDao().getLocalStudents()
-                .observe((LifecycleOwner) this, new Observer<List<Student>>() {
-                    @Override
-                    public void onChanged(List<Student> students) {
-                        Log.d(logDebug, "call -: onPerformSync started..." + students.size());
-                        showNotification(students);
+        studentList.clear();
+        try {
+            studentDB = StudentDB.Companion.getInstance(context);
+            studentList.addAll(studentDB.studentDao().getLocalStudents());
+            if (studentList.size() > 0) {
+                Log.d(logDebug, "call - Observer :getLocalStudents List size: " + studentList.size());
+                uploadData(studentList);
+            }
+        } catch (Exception e) {
+            Log.d(logDebug, "call -: Exception " + e.getMessage());
+            e.printStackTrace();
+        }
 
-                    }
-                });*/
-/*      WorkRequest uploadWorkRequest = new OneTimeWorkRequest.Builder(FileUploadFourground.class).build();
-        WorkManager.getInstance(context).enqueue(uploadWorkRequest);*/
+    }
 
+    private void uploadData(List<Student> students) {
+
+        Log.d(logDebug, "call -: StartNotification ...");
+
+        NotificationManager notificationManager = (NotificationManager) getContext()
+                .getSystemService(Context.NOTIFICATION_SERVICE);
+
+        createNotificationChannel();
+
+        NotificationCompat.Builder builder = new NotificationCompat
+                .Builder(getContext(), "CHANNEL_ID")
+                .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
+                .setContentTitle("Data Uploading")
+                .setContentText("upload ..")
+                .setAllowSystemGeneratedContextualActions(false)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        for (int i = 0; i < students.size(); i++) {
+            Student student = students.get(i);
+            Post post = new Post(student.getId(), student.getName());
+
+            builder.setProgress(students.size(), i, false);
+            notificationManager.notify(2, builder.build());
+
+            int finalI = i;
+            RetrofitClient.getApiServices()
+                    .postData(post)
+                    .enqueue(new Callback<PostResponse>() {
+                        @Override
+                        public void onResponse(@NonNull Call<PostResponse> call,
+                                               @NonNull Response<PostResponse> response) {
+                            if (response.isSuccessful()) {
+                                Log.d(logDebug, "call -: RetrofitClient onResponse ...");
+                                studentDB.studentDao().deleteStudent(students.get(finalI));
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<PostResponse> call, @NonNull Throwable t) {
+                            Log.d(logDebug, "call -: RetrofitClient onFailure ...");
+                        }
+                    });
+        }
+
+        builder.setProgress(0, 0, false);
+        builder.clearActions();
+        builder.setAutoCancel(true);
+        builder.setContentTitle("sync adapter");
+        builder.setContentText("file upload completed");
+        builder.setContentIntent(null);
+        notificationManager.notify(2, builder.build());
     }
 
     public Account getSyncAccount() {
         Log.d(logDebug, "call -: getSyncAccount started...");
         AccountManager accountManager = (AccountManager) context.getSystemService(Context.ACCOUNT_SERVICE);
-
         Account newAccount = new Account("Ruhul", context.getString(R.string.account_type));
-
         if (null == accountManager.getPassword(newAccount)) {
             if (!accountManager.addAccountExplicitly(newAccount, "", null)) {
                 return null;
@@ -94,8 +156,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     public void configurePeriodicSync() {
-        Log.d(logDebug, "configurePeriodicSync- syncInterval: " + SYNC_INTERVAL);
-        Log.d(logDebug, "configurePeriodicSync- flexTime: " + SYNC_FLEXTIME);
         Account account = getSyncAccount();
         String authority = context.getString(R.string.content_authority);
         ContentResolver.addPeriodicSync(
@@ -112,58 +172,6 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         bundle.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
         ContentResolver.requestSync(getSyncAccount(),
                 context.getString(R.string.content_authority), bundle);
-    }
-
-
-    private void showNotification(List<Student> students) {
-
-        NotificationManager notificationManager = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        createNotificationChannel();
-
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(getContext(), "CHANNEL_ID")
-                .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
-                .setContentTitle("sync adapter")
-                .setContentText("file upload ..")
-                .setAllowSystemGeneratedContextualActions(false)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
-        int totalItem = students.size();
-
-        if (!students.isEmpty()) {
-            for (int i = 0; i < students.size(); i++) {
-                int Position = i;
-                Thread thread = new Thread() {
-                    @Override
-                    public void run() {
-                        studentDB.studentDao().deleteStudent(students.get(Position));
-                    }
-                };
-                thread.start();
-                builder.setProgress(totalItem, i, false);
-                notificationManager.notify(2, builder.build());
-
-            }
-        }
-
-
-/*        for (int i = 1; i <= 100; i++) {
-            //Room Item Delete
-            try {
-                Thread.sleep(200);
-                builder.setProgress(100, i, false);
-                notificationManager.notify(2, builder.build());
-
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }*/
-
-        builder.setProgress(0, 0, false);
-        builder.clearActions();
-        builder.setContentIntent(null);
-        notificationManager.notify(2, builder.build());
-
-        //  notificationManager.notify(2, builder.build());
     }
 
     private void createNotificationChannel() {

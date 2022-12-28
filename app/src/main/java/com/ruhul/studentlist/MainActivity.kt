@@ -1,21 +1,38 @@
 package com.ruhul.studentlist
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.*
+import androidx.annotation.RestrictTo.Scope
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat.getSystemService
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.ruhul.studentlist.adapter.StudentAdapter
 import com.ruhul.studentlist.databinding.ActivityMainBinding
+import com.ruhul.studentlist.model.post.Post
+import com.ruhul.studentlist.model.post.PostResponse
+import com.ruhul.studentlist.network.RetrofitClient
 import com.ruhul.studentlist.room.StudentDB
 import com.ruhul.studentlist.sync.syncAdapter.SyncAdapter
+import kotlinx.coroutines.*
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.security.AccessController.getContext
 
 class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
@@ -23,8 +40,8 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     private lateinit var adapter: StudentAdapter
     private lateinit var studentList: List<Student>
     private lateinit var studentDB: StudentDB
-
     private lateinit var syncAdapter: SyncAdapter
+    private val logDebug = "SyncAdapterDebugTest"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,19 +49,30 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         setContentView(binding.root)
 
         syncAdapter = SyncAdapter(this, true)
-        syncAdapter.initializeSyncAdapter()
 
 
         initialize()
         studentList()
         clickEvent()
+        //PeriodicWiseTimeUpload()
 
+    }
 
-        val list = studentDB.studentDao().getLocalStudents().value?.toList()
-        list?.let {
-            Log.d("ListItem", "listSizeItem: "+list.size)
+    private fun PeriodicWiseTimeUpload() {
+        val timer = object : CountDownTimer(300 * 1000, 1000) {
+            override fun onTick(millisUntilFinished: Long) {}
+            override fun onFinish() {
+                Toast.makeText(this@MainActivity, "Start Upload..", Toast.LENGTH_SHORT).show()
+
+                getStudentList().observe(this@MainActivity, Observer {
+                    if (it.isNotEmpty()) {
+                        uploadData(it)
+                    }
+
+                })
+            }
         }
-
+        timer.start()
     }
 
     private fun clickEvent() {
@@ -86,7 +114,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
             alertDialog1.setCancelable(false)
             alertDialog1.show()
         }
-
     }
 
     @SuppressLint("SetTextI18n")
@@ -95,11 +122,16 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         studentDB = StudentDB.getInstance(this)
         binding.toolbarTitle.text = "StudentDB"
 
-
     }
 
     private fun studentList() {
         getStudentList().observe(this) {
+
+            Log.d(
+                "studentList",
+                "call - Observer :getLocalStudents List size: " + it.size
+            )
+
             adapter = StudentAdapter(it, this, this)
             val layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
             binding.studentRV.layoutManager = layoutManager
@@ -107,6 +139,69 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
         }
     }
+
+
+    private fun uploadData(students: List<Student>) {
+        Log.d(logDebug, "call -: StartNotification ...")
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        createNotificationChannel()
+        val builder = NotificationCompat.Builder(this, "CHANNEL_ID")
+            .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
+            .setContentTitle("Data Uploading")
+            .setContentText("upload ..")
+            .setOngoing(false)
+            .setAllowSystemGeneratedContextualActions(false)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+        for (i in students.indices) {
+            val student = students[i]
+            val post = Post(student.id, student.name)
+            builder.setProgress(students.size, i, false)
+            notificationManager.notify(2, builder.build())
+            //delay(5000)
+            RetrofitClient.getApiServices()
+                .postData(post)
+                .enqueue(object : Callback<PostResponse?> {
+                    override fun onResponse(
+                        call: Call<PostResponse?>,
+                        response: Response<PostResponse?>
+                    ) {
+                        if (response.isSuccessful) {
+                            Log.d(logDebug, "call -: RetrofitClient onResponse ...")
+
+                            studentDB.studentDao().deleteStudent(students[i])
+
+                        }
+                    }
+
+                    override fun onFailure(call: Call<PostResponse?>, t: Throwable) {
+                        Log.d(logDebug, "call -: RetrofitClient onFailure ...")
+
+                    }
+                })
+        }
+        builder.setProgress(0, 0, false)
+        builder.clearActions()
+        builder.setAutoCancel(true)
+        builder.setContentTitle("sync adapter")
+        builder.setContentText("file upload completed")
+        builder.setContentIntent(null)
+        notificationManager.notify(2, builder.build())
+
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name: CharSequence = "Notification Channel"
+            val description = "this is for Test Notification"
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel("CHANNEL_ID", name, importance)
+            channel.description = description
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
 
     @SuppressLint("NotifyDataSetChanged")
     private fun filterAscToDesc() {
@@ -156,7 +251,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         val idEditText = dialogView.findViewById(R.id.idET) as EditText
         val submitButton = dialogView.findViewById(R.id.addButton) as Button
         val alertDialog = dialogBuilder.create()
-        alertDialog.setCancelable(false)
+        alertDialog.setCanceledOnTouchOutside(true)
         alertDialog.show()
 
 
