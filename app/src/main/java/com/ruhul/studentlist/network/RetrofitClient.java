@@ -4,11 +4,10 @@ import android.database.Observable;
 
 import androidx.annotation.NonNull;
 
-import com.ruhul.studentlist.ConstantField;
-import com.ruhul.studentlist.model.SliderBannerResponse;
+import com.ruhul.studentlist.utils.ConstantField;
+import com.ruhul.studentlist.model.slider.SliderBannerResponse;
 import com.ruhul.studentlist.model.post.Post;
 import com.ruhul.studentlist.model.post.PostResponse;
-import com.ruhul.studentlist.signup.RegistrationResponse;
 
 import java.io.IOException;
 
@@ -23,8 +22,6 @@ import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.Body;
-import retrofit2.http.Field;
-import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 

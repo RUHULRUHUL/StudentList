@@ -7,7 +7,7 @@ import android.net.Uri;
 
 import androidx.annotation.Nullable;
 
-public class StubContentProvider extends ContentProvider {
+public class StubProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         return true;

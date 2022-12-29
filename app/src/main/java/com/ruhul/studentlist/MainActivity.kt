@@ -16,8 +16,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.work.*
 import com.ruhul.studentlist.adapter.StudentAdapter
 import com.ruhul.studentlist.databinding.ActivityMainBinding
 import com.ruhul.studentlist.model.post.Post
@@ -29,6 +29,8 @@ import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.concurrent.TimeUnit
+
 @Suppress("DEPRECATION")
 class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
@@ -38,6 +40,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     private lateinit var studentDB: StudentDB
     private lateinit var syncAdapter: SyncAdapter
     private val logDebug = "SyncAdapterDebugTest"
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +54,25 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         studentList()
         clickEvent()
         //PeriodicWiseTimeUpload()
+        //uploadWorker()
+
+    }
+
+    private fun uploadWorker() {
+
+        val constraints = Constraints.Builder()
+            .setRequiresCharging(true)
+            .setRequiresBatteryNotLow(true)
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresStorageNotLow(true)
+            .build()
+
+        val periodicWorkRequest = PeriodicWorkRequestBuilder<FileUploadFourground>(5, TimeUnit.MINUTES).build()
+        WorkManager.getInstance().enqueueUniquePeriodicWork(
+            "File Upload",
+            ExistingPeriodicWorkPolicy.KEEP,
+            periodicWorkRequest
+        )
 
     }
 

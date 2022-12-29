@@ -1,4 +1,4 @@
-package com.ruhul.studentlist.signup;
+package com.ruhul.studentlist.model.signup;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;

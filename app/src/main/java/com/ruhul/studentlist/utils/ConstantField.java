@@ -1,4 +1,4 @@
-package com.ruhul.studentlist;
+package com.ruhul.studentlist.utils;
 
 public class ConstantField {
     public static final String BaseUrl = "https://heshelghor.com/api/";

@@ -1,11 +1,8 @@
-package com.ruhul.studentlist.model;
+package com.ruhul.studentlist.model.signup;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
-
-import java.util.List;
-
-public class SliderBannerResponse {
+public class RegistrationResponse {
 
     @SerializedName("success")
     @Expose
@@ -13,9 +10,12 @@ public class SliderBannerResponse {
     @SerializedName("code")
     @Expose
     private long code;
+    @SerializedName("message")
+    @Expose
+    private String message;
     @SerializedName("data")
     @Expose
-    private List<Slider> data = null;
+    private Registration data;
 
     public boolean isSuccess() {
         return success;
@@ -33,13 +33,20 @@ public class SliderBannerResponse {
         this.code = code;
     }
 
-    public List<Slider> getData() {
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public Registration getData() {
         return data;
     }
 
-    public void setData(List<Slider> data) {
+    public void setData(Registration data) {
         this.data = data;
     }
-
 
 }

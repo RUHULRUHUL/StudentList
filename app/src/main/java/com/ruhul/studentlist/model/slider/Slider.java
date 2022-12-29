@@ -1,4 +1,4 @@
-package com.ruhul.studentlist.model;
+package com.ruhul.studentlist.model.slider;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
