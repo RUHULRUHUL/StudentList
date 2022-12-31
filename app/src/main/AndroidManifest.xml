@@ -42,14 +42,15 @@
 
         <service
             android:name=".sync.AuthenticatorService"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator" />
             </intent-filter>
             <meta-data
                 android:name="android.accounts.AccountAuthenticator"
-                android:resource="@xml/authenticator"/>
+                android:resource="@xml/authenticator" />
         </service>
+
 
         <service
             android:name=".sync.SyncService"

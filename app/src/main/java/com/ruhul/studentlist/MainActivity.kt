@@ -1,12 +1,15 @@
 package com.ruhul.studentlist
 
+import android.accounts.Account
+import android.accounts.AccountManager
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ContentResolver
+import android.content.Context
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
-import android.os.CountDownTimer
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -41,57 +44,124 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     private lateinit var syncAdapter: SyncAdapter
     private val logDebug = "SyncAdapterDebugTest"
 
+    private var account: Account? = null
+    private val AUTHORITY = "com.ruhul.studentlist.provider"
+    private val ACCOUNT_TYPE = "com.ruhul.studentlist"
+    private val ACCOUNT = "ruhul@gmail.com"
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        syncAdapter = SyncAdapter(this, true)
+        account = createSyncAccount(this);
+        customTimeSchedule()
+        //alarmManager()
 
 
         initialize()
         studentList()
         clickEvent()
-        //PeriodicWiseTimeUpload()
         //uploadWorker()
 
     }
 
-    private fun uploadWorker() {
+    private fun alarmManager() {
 
+    }
+
+    private fun createSyncAccount(context: Context): Account? {
+        Log.d(logDebug, "call -: getSyncAccount started...");
+        val accountManager = context.getSystemService(Context.ACCOUNT_SERVICE) as AccountManager;
+        val newAccount = Account(ACCOUNT, ACCOUNT_TYPE);
+
+        try {
+            if (null == accountManager.getPassword(newAccount)) {
+                if (!accountManager.addAccountExplicitly(newAccount, "", null)) {
+                    return null;
+                }
+
+                configureSyncAutomatically(newAccount)
+                configurePeriodicSync(newAccount)
+                syncImmediately(newAccount)
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace();
+        }
+
+        return newAccount;
+    }
+
+    fun syncImmediately(newAccount: Account) {
+        Log.d(logDebug, "call - syncImmediately: ")
+        val bundle = Bundle()
+        bundle.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+        bundle.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+        ContentResolver.requestSync(
+            newAccount,
+            AUTHORITY,
+            bundle
+        )
+    }
+
+    private fun configureSyncAutomatically(newAccount: Account) {
+        ContentResolver.setSyncAutomatically(
+            newAccount,
+            AUTHORITY,
+            true
+        )
+    }
+
+    private fun configurePeriodicSync(newAccount: Account) {
+        ContentResolver.addPeriodicSync(
+            newAccount,
+            AUTHORITY,
+            Bundle.EMPTY,
+            3600L
+        )
+    }
+
+    private fun customTimeSchedule() {
+        Log.d(logDebug, "call -: customTimeSchedule started...")
+        val required = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncWorkRequest =
+            PeriodicWorkRequestBuilder<CustomPeriodicTime>(15, TimeUnit.MINUTES)
+                .setConstraints(required)
+                .build()
+
+        WorkManager.getInstance().enqueueUniquePeriodicWork(
+            "FileUploadSyncAdapter",
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncWorkRequest
+        )
+    }
+
+
+    private fun uploadWorker() {
         val constraints = Constraints.Builder()
-            .setRequiresCharging(true)
+            .setRequiresBatteryNotLow(true)
             .setRequiresBatteryNotLow(true)
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresStorageNotLow(true)
             .build()
 
-        val periodicWorkRequest = PeriodicWorkRequestBuilder<FileUploadFourground>(5, TimeUnit.MINUTES).build()
+        val periodicWorkRequest =
+            PeriodicWorkRequestBuilder<FileUploadForeground>(15, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build()
+
         WorkManager.getInstance().enqueueUniquePeriodicWork(
-            "File Upload",
+            "FileUpload",
             ExistingPeriodicWorkPolicy.KEEP,
             periodicWorkRequest
         )
 
-    }
-
-    private fun PeriodicWiseTimeUpload() {
-        //5 minutes
-        val timer = object : CountDownTimer(300 * 1000, 1000) {
-            override fun onTick(millisUntilFinished: Long) {}
-            override fun onFinish() {
-                Toast.makeText(this@MainActivity, "Start Upload..", Toast.LENGTH_SHORT).show()
-
-                getStudentList().observe(this@MainActivity) {
-                    if (it.isNotEmpty()) {
-                        uploadData(it)
-                    }
-
-                }
-            }
-        }
-        timer.start()
     }
 
     private fun clickEvent() {
@@ -159,7 +229,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
     }
 
-
     private fun uploadData(students: List<Student>) {
         Log.d(logDebug, "call -: StartNotification ...")
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -221,7 +290,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
     }
 
-
     @SuppressLint("NotifyDataSetChanged")
     private fun filterAscToDesc() {
         val dialogBuilder = AlertDialog.Builder(this)
@@ -258,7 +326,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
 
     }
-
 
     @SuppressLint("NotifyDataSetChanged")
     private fun studentForm() {
@@ -337,7 +404,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
     }
 
-
     @SuppressLint("StaticFieldLeak")
     inner class InsertStudent : AsyncTask<Student?, Void?, Void?>() {
         @Deprecated("Deprecated in Java")
@@ -376,5 +442,16 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
 
     }*/
+
+    inner class CustomPeriodicTime(
+        context: Context,
+        workerParams: WorkerParameters
+    ) : Worker(context, workerParams) {
+        override fun doWork(): Result {
+            Log.d(logDebug, "call -: CustomPeriodicTime class started...")
+            account?.let { syncImmediately(it) }
+            return Result.success()
+        }
+    }
 
 }
