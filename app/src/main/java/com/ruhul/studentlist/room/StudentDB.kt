@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.ruhul.studentlist.Student
+import com.ruhul.studentlist.utils.ConstantField
 
 @Database(entities = [Student::class], version = 1, exportSchema = false)
 abstract class StudentDB : RoomDatabase() {
@@ -21,7 +22,7 @@ abstract class StudentDB : RoomDatabase() {
                     Instance = Room.databaseBuilder(
                         context,
                         StudentDB::class.java,
-                        "studentDB"
+                        ConstantField.studentDB
                     )
                         .fallbackToDestructiveMigration()
                         .allowMainThreadQueries()

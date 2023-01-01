@@ -27,9 +27,6 @@ interface StudentDao {
 
 
     //For the Server Operation
-    @Insert
-    fun insertStudentServer(student: Student)
-
     @Query("select * from student order by id asc")
     fun getLocalStudents(): List<Student>
 

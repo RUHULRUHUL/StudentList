@@ -1,21 +1,13 @@
 package com.ruhul.studentlist.network;
 
 import android.database.Observable;
-
-import androidx.annotation.NonNull;
-
 import com.ruhul.studentlist.utils.ConstantField;
 import com.ruhul.studentlist.model.slider.SliderBannerResponse;
 import com.ruhul.studentlist.model.post.Post;
 import com.ruhul.studentlist.model.post.PostResponse;
-
-import java.io.IOException;
-
 import okhttp3.HttpUrl;
-import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.Response;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Retrofit;
@@ -34,21 +26,17 @@ public class RetrofitClient {
             logging.setLevel(HttpLoggingInterceptor.Level.BODY);
             OkHttpClient.Builder client = new OkHttpClient.Builder();
             client.addInterceptor(logging);
-            client.addInterceptor(new Interceptor() {
-                @NonNull
-                @Override
-                public Response intercept(@NonNull Chain chain) throws IOException {
-                    Request original = chain.request();
-                    HttpUrl originalHttpUrl = original.url();
-                    HttpUrl url = originalHttpUrl.newBuilder()
-                            .build();
+            client.addInterceptor(chain -> {
+                Request original = chain.request();
+                HttpUrl originalHttpUrl = original.url();
+                HttpUrl url = originalHttpUrl.newBuilder()
+                        .build();
 
-                    Request.Builder requestBuilder = original.newBuilder().url(url);
-                    requestBuilder.addHeader("Accept", "application/json");
-                    requestBuilder.addHeader("Content-Type", "application/json");
-                    Request request = requestBuilder.build();
-                    return chain.proceed(request);
-                }
+                Request.Builder requestBuilder = original.newBuilder().url(url);
+                requestBuilder.addHeader("Accept", "application/json");
+                requestBuilder.addHeader("Content-Type", "application/json");
+                Request request = requestBuilder.build();
+                return chain.proceed(request);
             });
             // Create retrofit instance
             Retrofit retrofit = new Retrofit.Builder()
@@ -65,6 +53,7 @@ public class RetrofitClient {
     }
 
     public interface ApiServices {
+
         @GET(ConstantField.Sliders)
         Observable<SliderBannerResponse> getSliders();
 

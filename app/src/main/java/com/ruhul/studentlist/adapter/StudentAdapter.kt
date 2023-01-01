@@ -21,7 +21,6 @@ class StudentAdapter(
     private val studentUpdate: StudentUpdate
 ) : RecyclerView.Adapter<StudentAdapter.ViewHolder>(), Filterable {
     private var filterStudentList: List<Student> = studentList
-    private var studentDB: StudentDB = StudentDB.getInstance(context)
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -36,17 +35,15 @@ class StudentAdapter(
         holder.binding.userId.text = student.id.toString()
 
         holder.binding.deleteImg.setOnClickListener {
-            studentDB.studentDao().deleteStudent(filterStudentList[holder.adapterPosition])
-            notifyItemRemoved(holder.adapterPosition)
+            studentUpdate.onStudentDelete(filterStudentList[position], position)
         }
 
         holder.binding.editInfo.setOnClickListener {
             studentUpdate.studentUpdate(
-                filterStudentList[holder.adapterPosition],
-                holder.adapterPosition
+                filterStudentList[position],
+                position
             )
         }
-
 
     }
 
@@ -56,6 +53,7 @@ class StudentAdapter(
 
     interface StudentUpdate {
         fun studentUpdate(student: Student, position: Int)
+        fun onStudentDelete(student: Student, position: Int)
 
     }
 

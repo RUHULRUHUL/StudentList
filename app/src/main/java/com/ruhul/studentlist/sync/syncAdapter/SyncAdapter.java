@@ -76,9 +76,11 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
         NotificationCompat.Builder builder = new NotificationCompat
                 .Builder(getContext(), "CHANNEL_ID")
                 .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
-                .setContentTitle("Upload..")
+                .setContentTitle("Upload")
+                .setSilent(true)
                 .setAllowSystemGeneratedContextualActions(false)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
 
         for (int i = 0; i < students.size(); i++) {
             Student student = students.get(i);
@@ -114,7 +116,8 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
 
         builder.setProgress(0, 0, false);
         builder.clearActions();
-        builder.setAutoCancel(true);
+        builder.setContentTitle("upload completed");
+        builder.setAutoCancel(false);
         builder.setContentIntent(null);
         notificationManager.notify(2, builder.build());
     }
@@ -126,6 +129,7 @@ public class SyncAdapter extends AbstractThreadedSyncAdapter {
             int importance = NotificationManager.IMPORTANCE_HIGH;
             NotificationChannel channel = new NotificationChannel("CHANNEL_ID", name, importance);
             channel.setDescription(description);
+            channel.setSound(null, null);
             NotificationManager notificationManager = getContext().getSystemService(NotificationManager.class);
             notificationManager.createNotificationChannel(channel);
         }

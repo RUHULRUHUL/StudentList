@@ -1,14 +1,10 @@
 package com.ruhul.studentlist
 
-import android.accounts.Account
-import android.accounts.AccountManager
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.ContentResolver
-import android.content.Context
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.os.AsyncTask
-import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -17,22 +13,16 @@ import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
-import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.work.*
 import com.ruhul.studentlist.adapter.StudentAdapter
 import com.ruhul.studentlist.databinding.ActivityMainBinding
-import com.ruhul.studentlist.model.post.Post
-import com.ruhul.studentlist.model.post.PostResponse
-import com.ruhul.studentlist.network.RetrofitClient
+import com.ruhul.studentlist.receiver.SyncTimeReceiver
 import com.ruhul.studentlist.room.StudentDB
-import com.ruhul.studentlist.sync.syncAdapter.SyncAdapter
 import kotlinx.coroutines.*
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import java.util.concurrent.TimeUnit
+
 
 @Suppress("DEPRECATION")
 class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
@@ -41,118 +31,59 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     private lateinit var adapter: StudentAdapter
     private lateinit var studentList: List<Student>
     private lateinit var studentDB: StudentDB
-    private lateinit var syncAdapter: SyncAdapter
+
+
     private val logDebug = "SyncAdapterDebugTest"
-
-    private var account: Account? = null
-    private val AUTHORITY = "com.ruhul.studentlist.provider"
-    private val ACCOUNT_TYPE = "com.ruhul.studentlist"
-    private val ACCOUNT = "ruhul@gmail.com"
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        account = createSyncAccount(this);
-        customTimeSchedule()
-        //alarmManager()
-
-
         initialize()
         studentList()
         clickEvent()
-        //uploadWorker()
+
+        //workManager use for schedule
+        uploadDataWorkManager()
+
+        //alarmSchedule use for Sync Adapter
+        //setAlarmSchedule()
 
     }
 
-    private fun alarmManager() {
+    private fun setAlarmSchedule() {
 
-    }
+        Log.d(logDebug, "call - setAlarmSchedule: ")
+        val intent = Intent(this, SyncTimeReceiver::class.java)
+        val pendingIntent =
+            PendingIntent.getBroadcast(this.applicationContext, 234324243, intent, 0)
 
-    private fun createSyncAccount(context: Context): Account? {
-        Log.d(logDebug, "call -: getSyncAccount started...");
-        val accountManager = context.getSystemService(Context.ACCOUNT_SERVICE) as AccountManager;
-        val newAccount = Account(ACCOUNT, ACCOUNT_TYPE);
+        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+        alarmManager.setRepeating(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis(),
+            1 * 60 * 1000,
+            pendingIntent
+        )
 
-        try {
-            if (null == accountManager.getPassword(newAccount)) {
-                if (!accountManager.addAccountExplicitly(newAccount, "", null)) {
-                    return null;
-                }
-
-                configureSyncAutomatically(newAccount)
-                configurePeriodicSync(newAccount)
-                syncImmediately(newAccount)
+/*        getStudentList().observe(this) {
+            if (it.isEmpty()) {
+                alarmManager.cancel(pendingIntent)
+                Toast.makeText(this, "alarm cancel", Toast.LENGTH_SHORT).show()
             }
+        }*/
 
-        } catch (e: Exception) {
-            e.printStackTrace();
-        }
-
-        return newAccount;
     }
 
-    fun syncImmediately(newAccount: Account) {
-        Log.d(logDebug, "call - syncImmediately: ")
-        val bundle = Bundle()
-        bundle.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
-        bundle.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
-        ContentResolver.requestSync(
-            newAccount,
-            AUTHORITY,
-            bundle
-        )
-    }
-
-    private fun configureSyncAutomatically(newAccount: Account) {
-        ContentResolver.setSyncAutomatically(
-            newAccount,
-            AUTHORITY,
-            true
-        )
-    }
-
-    private fun configurePeriodicSync(newAccount: Account) {
-        ContentResolver.addPeriodicSync(
-            newAccount,
-            AUTHORITY,
-            Bundle.EMPTY,
-            3600L
-        )
-    }
-
-    private fun customTimeSchedule() {
-        Log.d(logDebug, "call -: customTimeSchedule started...")
-        val required = Constraints.Builder()
-            .setRequiresBatteryNotLow(true)
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val syncWorkRequest =
-            PeriodicWorkRequestBuilder<CustomPeriodicTime>(15, TimeUnit.MINUTES)
-                .setConstraints(required)
-                .build()
-
-        WorkManager.getInstance().enqueueUniquePeriodicWork(
-            "FileUploadSyncAdapter",
-            ExistingPeriodicWorkPolicy.KEEP,
-            syncWorkRequest
-        )
-    }
-
-
-    private fun uploadWorker() {
+    private fun uploadDataWorkManager() {
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
-            .setRequiresBatteryNotLow(true)
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresStorageNotLow(true)
             .build()
 
         val periodicWorkRequest =
-            PeriodicWorkRequestBuilder<FileUploadForeground>(15, TimeUnit.MINUTES)
+            PeriodicWorkRequestBuilder<FileUploadBackground>(15, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .build()
 
@@ -229,81 +160,17 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
     }
 
-    private fun uploadData(students: List<Student>) {
-        Log.d(logDebug, "call -: StartNotification ...")
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        createNotificationChannel()
-        val builder = NotificationCompat.Builder(this, "CHANNEL_ID")
-            .setSmallIcon(R.drawable.ic_baseline_cloud_upload_24)
-            .setContentTitle("Data Uploading")
-            .setContentText("upload ..")
-            .setOngoing(false)
-            .setAllowSystemGeneratedContextualActions(false)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-
-        for (i in students.indices) {
-            val student = students[i]
-            val post = Post(student.id, student.name)
-            builder.setProgress(students.size, i, false)
-            notificationManager.notify(2, builder.build())
-            //delay(5000)
-            RetrofitClient.getApiServices()
-                .postData(post)
-                .enqueue(object : Callback<PostResponse?> {
-                    override fun onResponse(
-                        call: Call<PostResponse?>,
-                        response: Response<PostResponse?>
-                    ) {
-                        if (response.isSuccessful) {
-                            Log.d(logDebug, "call -: RetrofitClient onResponse ...")
-
-                            studentDB.studentDao().deleteStudent(students[i])
-
-                        }
-                    }
-
-                    override fun onFailure(call: Call<PostResponse?>, t: Throwable) {
-                        Log.d(logDebug, "call -: RetrofitClient onFailure ...")
-
-                    }
-                })
-        }
-        builder.setProgress(0, 0, false)
-        builder.clearActions()
-        builder.setAutoCancel(true)
-        builder.setContentTitle("sync adapter")
-        builder.setContentText("file upload completed")
-        builder.setContentIntent(null)
-        notificationManager.notify(2, builder.build())
-
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name: CharSequence = "Notification Channel"
-            val description = "this is for Test Notification"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel("CHANNEL_ID", name, importance)
-            channel.description = description
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
-        }
-    }
-
     @SuppressLint("NotifyDataSetChanged")
     private fun filterAscToDesc() {
         val dialogBuilder = AlertDialog.Builder(this)
         val dialogView = layoutInflater.inflate(R.layout.filter_alert, null)
         dialogBuilder.setView(dialogView)
-
-        //val ascRadioButton = dialogView.findViewById(R.id.ascBtn) as RadioButton
         val descRadioButton = dialogView.findViewById(R.id.descBtn) as RadioButton
         val filterButton = dialogView.findViewById(R.id.filterBtn) as Button
         val radioGroup = dialogView.findViewById(R.id.filterRadioGroup) as RadioGroup
 
         val alertDialog = dialogBuilder.create()
         alertDialog.show()
-
 
         filterButton.setOnClickListener {
             alertDialog.dismiss()
@@ -404,6 +271,11 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
     }
 
+    override fun onStudentDelete(student: Student, position: Int) {
+        studentDB.studentDao().deleteStudent(student)
+        adapter.notifyItemRemoved(position)
+    }
+
     @SuppressLint("StaticFieldLeak")
     inner class InsertStudent : AsyncTask<Student?, Void?, Void?>() {
         @Deprecated("Deprecated in Java")
@@ -424,34 +296,5 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
     }
 
-/*    inner class DeleteStudent :
-        AsyncTask<Student?, Void?, Void?>() {
-        override fun doInBackground(vararg student: Student?): Void? {
-            student[0]?.let { studentDB.studentDao().deleteStudent(it) }
-            return null
-        }
-
-    }*/
-
-/*    inner class DeleteAllStudent :
-        AsyncTask<Void?, Void?, Void?>() {
-        @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg p0: Void?): Void? {
-            studentDB.studentDao().deleteAllStudent()
-            return null
-        }
-
-    }*/
-
-    inner class CustomPeriodicTime(
-        context: Context,
-        workerParams: WorkerParameters
-    ) : Worker(context, workerParams) {
-        override fun doWork(): Result {
-            Log.d(logDebug, "call -: CustomPeriodicTime class started...")
-            account?.let { syncImmediately(it) }
-            return Result.success()
-        }
-    }
 
 }
