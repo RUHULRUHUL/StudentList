@@ -3,8 +3,10 @@ package com.ruhul.studentlist
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.Intent
 import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -32,8 +34,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
     private lateinit var studentList: List<Student>
     private lateinit var studentDB: StudentDB
 
-
-    private val logDebug = "SyncAdapterDebugTest"
+    private val logDebug = "MainActivityDebugTest"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,10 +46,10 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         clickEvent()
 
         //workManager use for schedule
-        uploadDataWorkManager()
+        //uploadDataWorkManager()
 
         //alarmSchedule use for Sync Adapter
-        //setAlarmSchedule()
+        setAlarmSchedule()
 
     }
 
@@ -57,7 +58,21 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         Log.d(logDebug, "call - setAlarmSchedule: ")
         val intent = Intent(this, SyncTimeReceiver::class.java)
         val pendingIntent =
-            PendingIntent.getBroadcast(this.applicationContext, 234324243, intent, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.getBroadcast(
+                    this.applicationContext,
+                    234324243,
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+            } else {
+                PendingIntent.getBroadcast(
+                    this.applicationContext,
+                    234324243,
+                    intent,
+                    FLAG_UPDATE_CURRENT
+                )
+            }
 
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         alarmManager.setRepeating(
@@ -66,13 +81,6 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
             1 * 60 * 1000,
             pendingIntent
         )
-
-/*        getStudentList().observe(this) {
-            if (it.isEmpty()) {
-                alarmManager.cancel(pendingIntent)
-                Toast.makeText(this, "alarm cancel", Toast.LENGTH_SHORT).show()
-            }
-        }*/
 
     }
 

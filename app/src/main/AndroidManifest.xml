@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
     <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" />
 
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -34,9 +36,7 @@
         </activity>
 
 
-        <receiver android:name=".receiver.SyncTimeReceiver" >
-        </receiver>
-
+        <receiver android:name=".receiver.SyncTimeReceiver"></receiver>
 
 
         <service
@@ -68,7 +68,6 @@
             android:authorities="com.ruhul.studentlist.provider"
             android:exported="false"
             android:syncable="true" />
-
 
 
     </application>
