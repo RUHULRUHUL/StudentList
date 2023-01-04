@@ -1,20 +1,27 @@
 package com.ruhul.studentlist
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatEditText
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.work.*
@@ -22,6 +29,7 @@ import com.ruhul.studentlist.adapter.StudentAdapter
 import com.ruhul.studentlist.databinding.ActivityMainBinding
 import com.ruhul.studentlist.receiver.SyncTimeReceiver
 import com.ruhul.studentlist.room.StudentDB
+import com.ruhul.studentlist.utils.PermissionUtils.PERMISSION_REQUEST_CODE
 import kotlinx.coroutines.*
 import java.util.concurrent.TimeUnit
 
@@ -36,6 +44,8 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
 
     private val logDebug = "MainActivityDebugTest"
 
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -45,6 +55,31 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         studentList()
         clickEvent()
 
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // sendNotification(this)
+                    Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val uri: Uri = Uri.fromParts("package", packageName, null)
+                    intent.data = uri
+                    startActivity(intent)
+                }
+                else -> {
+                    requestPermissionLauncher.launch(
+                        Manifest.permission.POST_NOTIFICATIONS
+                    )
+                }
+            }
+        }
+
+
         //workManager use for schedule
         //uploadDataWorkManager()
 
@@ -52,6 +87,23 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         setAlarmSchedule()
 
     }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            //sendNotification(this)
+        } else {
+            // Explain to the user that the feature is unavailable because the
+            // features requires a permission that the user has denied. At the
+            // same time, respect the user's decision. Don't link to system
+            // settings in an effort to convince the user to change their
+            // decision.
+        }
+    }
+
+
+
 
     private fun setAlarmSchedule() {
 
@@ -304,5 +356,54 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         }
     }
 
+
+    override fun onRequestPermissionsResult(requestCode: Int,
+                                            permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            PERMISSION_REQUEST_CODE -> {
+                // If request is cancelled, the result arrays are empty.
+                if ((grantResults.isNotEmpty() &&
+                            grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    Toast.makeText(this, "Permission Success", Toast.LENGTH_SHORT).show()
+                } else {
+                    displayNeverAskAgainDialog()
+                }
+                return
+            }
+
+            // Add other 'when' lines to check for other
+            // permissions this app might request.
+            else -> {
+                // Ignore all other requests.
+            }
+        }
+    }
+
+    fun displayNeverAskAgainDialog() {
+        val builder = AlertDialog.Builder(this@MainActivity)
+        builder.setMessage(
+            """
+            We need to  performing for necessary  Notification Progress. Please permit the permission through Settings screen.
+            
+            Select Permissions -> Enable permission
+            """.trimIndent()
+        )
+        builder.setCancelable(false)
+        builder.setPositiveButton(
+            "Permit Manually"
+        ) { dialog, which ->
+            dialog.dismiss()
+            val intent = Intent()
+            intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            val uri = Uri.fromParts("package", packageName, null)
+            intent.data = uri
+            startActivity(intent)
+        }
+        builder.setNegativeButton(
+            "Cancel"
+        ) { dialog, which -> finish() }
+        builder.show()
+    }
 
 }
