@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity(), StudentAdapter.StudentUpdate {
         //uploadDataWorkManager()
 
         //alarmSchedule use for Sync Adapter
-        setAlarmSchedule()
+       // setAlarmSchedule()
 
     }
 
